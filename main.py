@@ -1,22 +1,53 @@
 import preprocess as pps
-
 from datetime import datetime
+import os
+import shutil
 
-mainloc = r'/mnt/c/users/victo/documents/research/datasets/saarland/rawdata'
-audioloc = r'/mnt/c/users/victo/documents/research/datasets/saarland/audio'
-midiloc = r'/mnt/c/users/victo/documents/research/datasets/saarland/midi'
-csvloc = r'/mnt/c/users/victo/documents/research/datasets/saarland/csv'
-timeseriesloc = r'/mnt/c/users/victo/documents/research/datasets/saarland/time_series'
-cutaudloc = r'/mnt/c/users/victo/documents/research/datasets/saarland/cutaudio'
-cutsampaudloc = r'/mnt/c/users/victo/documents/research/datasets/saarland/cutdsampaud'
-splitaudloc = r'/mnt/c/users/victo/documents/research/datasets/saarland/split/audio'
-splitmidloc = r'/mnt/c/users/victo/documents/research/datasets/saarland/split/time_series'
+print("You will be asked for 9 different directories to store all of the information in. They must all be different. \n The information that needs directories is:")
+print("Where the data to be preprocessed is currently stored")
+print("Where to put the raw audio")
+print("Where to put the raw MIDI")
+print("Where to put the CSVMIDI")
+print("Where to put the full time series")
+print("Where to put the cut audio")
+print("Where to put the cut and resampled audio")
+print("Where to put the split audio")
+print("Where to put the split \"MIDI\"")
+beg = input("Part that is the same for all: ")
+mainloc = beg + input("Directory of data: ")
+if(not(os.path.isdir(mainloc))):
+    os.mkdir(mainloc)
+audioloc = beg + input("Directory audio files should go: ")
+if(not(os.path.isdir(audioloc))):
+    os.mkdir(audioloc)
+midiloc = beg + input("Directory MIDI files should go: ")
+if(not(os.path.isdir(midiloc))):
+    os.mkdir(midiloc)
+csvloc = beg + input("Directory CSV should go: ")
+if(not(os.path.isdir(csvloc))):
+    os.mkdir(csvloc)
+timeseriesloc = beg + input("Directory timeseries should go: ")
+if(not(os.path.isdir(timeseriesloc))):
+    os.mkdir(timeseriesloc)
+cutaudloc = beg + input("Directory the cut audio should go: ")
+if(not(os.path.isdir(cutaudloc))):
+    os.mkdir(cutaudloc)
+cutsampaudloc = beg + input("Directory the cut and downsampled audio should go: ")
+if(not(os.path.isdir(cutsampaudloc))):
+    os.mkdir(cutsampaudloc)
+splitaudloc = beg + input("Directory the split audio should go: ")
+if(not(os.path.isdir(splitaudloc))):
+    os.mkdir(splitaudloc)
+splitmidloc = beg + input("Directory the split \"MIDI\" should go: ")
+if(not(os.path.isdir(splitmidloc))):
+    os.mkdir(splitmidloc)
 
-cutend = 'cut.wav'
-cutsampend = 'cutandresample.wav'
-timeseriesend = 'chunk.csv' #will always be preceded by size
-audsplitend = '_.wav' #will always be preceded by size "secsplit" and number of split
-tssplitend = '_.csv' #will always be preceded by size "secsplit" and number of split
+print("Now you will be asked for the endings to use for each of the created data")
+cutend = input("How to end the cut audio: ") + ".wav" #'cut.wav'
+cutsampend = input("How to end the cut and resampled audio: ") + ".wav" #'cutandresample.wav'
+timeseriesend = input("How to end the time series (will always be preceded by the size of the steps): ") + ".csv" #'chunk.csv' #will always be preceded by size
+audsplitend = input("How to end the split audio (will always be preceded by the size, \"sec split\" and the number split): ") + ".wav" #'_.wav' #will always be preceded by size "secsplit" and number of split
+tssplitend = input("How to end the split \"MIDI\" (will always be preceded by the size, \"sec split\" and the number split): ") + ".csv" #'_.csv' #will always be preceded by size "secsplit" and number of split
 
 now = datetime.now()
 start_time = now.strftime("%H:%M:%S")
@@ -46,6 +77,17 @@ pps.batch_split_audio(cutsampaudloc, 120, cutsampend, audsplitend, 1024, 16000)
 pps.move_to_new_directory(cutsampaudloc, splitaudloc, audsplitend)
 pps.batch_split_time_series(timeseriesloc, 120, timeseriesend, tssplitend, 1024, 16000)
 pps.move_to_new_directory(timeseriesloc, splitmidloc, tssplitend)
+
+rem = input("Remove all but raw data and fully preprocessed data? y/n ")
+if (rem == "y"):
+    shutil.rmtree(csvloc)
+    shutil.rmtree(timeseriesloc)
+    shutil.rmtree(cutaudloc)
+    shutil.rmtree(cutsampaudloc)
+    direc = os.listdir(mainloc)
+    if (direc == 0):
+        os.rmdir(mainloc)
+
 
 now = datetime.now()
 end_time = now.strftime("%H:%M:%S")
