@@ -109,26 +109,29 @@ def time_to_size(time, size, sampling_rate):
     return time
 
 #split the audio file in to segments of lensplit seconds
-def split_audio(in_file, lensplit, size, sampling_rate, new_ending):
+def split_audio(in_file, lensplit, percent_overlap, size, sampling_rate, new_ending):
     lensplit = time_to_size(lensplit, size, sampling_rate)
     lensplitnop = str(lensplit).replace('.', 'point')
     song = AudioSegment.from_file(in_file)
     song_len = song.duration_seconds*16000
+    percent = percent_overlap/100
+    overlap = (16000*lensplit)*percent
+    
     i = 0
     nexti = 16000*lensplit
     j = 1
     in_copy = in_file
     while(nexti < song_len):
-        out_end = '_'+lensplitnop+'secsplit'+str(j)
+        out_end = '_'+lensplitnop+'secsplit'+str(percent_overlap)+"percentoverlap"+str(j)
         out_file = in_copy.replace('.wav', out_end + new_ending)
         out = ffmpeg.input(in_file)
         out = ffmpeg.filter_(out, 'atrim', start_pts = i, end_pts = nexti)
         out = ffmpeg.output(out, out_file)
         out.run() 
-        i = nexti
-        nexti += 16000*lensplit
+        i = (nexti-overlap)
+        nexti += ((16000*lensplit)-overlap)
         j += 1
-    out_end = '_'+lensplitnop+'secsplit'+str(j)
+    out_end = '_'+lensplitnop+'secsplit'+str(percent_overlap)+"percentoverlap"+str(j)
     out_file = in_copy.replace('.wav', out_end + new_ending)
     out = ffmpeg.input(in_file)
     out = ffmpeg.filter_(out, 'atrim', start_pts = i)
@@ -136,13 +139,15 @@ def split_audio(in_file, lensplit, size, sampling_rate, new_ending):
     out.run()
 
 #split csv file in to chunks of lensplit seconds
-def split_time_series(in_file, lensplit, size, sampling_rate, new_ending):
+def split_time_series(in_file, lensplit, percent_overlap, size, sampling_rate, new_ending):
     lensplit = time_to_size(lensplit, size, sampling_rate)
     lensplitnop = str(lensplit).replace('.', 'point')
     x = int(lensplit/0.064)
     i = 1
     nexti = i+x
     j = 1
+    percent = percent_overlap/100
+    overlap = int(x*percent)
     in_copy = in_file
     data = []
     with open(in_file, 'r') as f:
@@ -150,13 +155,13 @@ def split_time_series(in_file, lensplit, size, sampling_rate, new_ending):
         for row in read_file:
             data.append(row)
     while(nexti < len(data)):
-        out_end = '_'+lensplitnop+'secsplit'+str(j)
+        out_end = '_'+lensplitnop+'secsplit'+str(percent_overlap)+"percentoverlap"+str(j)
         out_file = in_copy.replace('.csv', out_end + new_ending)
         copy_csv(i, nexti, data, out_file)
-        i = nexti
-        nexti += x
+        i = (nexti-overlap)
+        nexti += (x-overlap)
         j += 1
-    out_end = '_'+lensplitnop+'secsplit'+str(j)
+    out_end = '_'+lensplitnop+'secsplit'+str(percent_overlap)+"percentoverlap"+str(j)
     out_file = in_copy.replace('.csv', out_end + new_ending) 
     copy_csv(i, nexti, data, out_file)
 
