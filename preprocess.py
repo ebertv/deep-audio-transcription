@@ -49,6 +49,7 @@ def resample_audio(audio_path, sampling_rate, ending, new_ending):
 
 #go from midicsv to time series
 def time_series(input_file, output_file, size):
+    
     song = pd.read_csv(input_file, names = ["Track", "Tick", "Call", "Channel", "Note", "Velocity", "0"])
     chunk = [0.000]*132
     chunk[0] = "Time"
@@ -96,17 +97,6 @@ def time_series(input_file, output_file, size):
             wr = csv.writer(result_file, dialect='excel')
             wr.writerow(chunk)
 
-#snap time to nearest time series length in ms
-def time_to_size(time, size, sampling_rate):
-    z = size/sampling_rate
-    a = time % z
-    b = time - a
-    c = b + 0.064
-    if (time-b > c-time):
-        time = c
-    else:
-        time = b
-    return time
 
 #split the audio file in to segments of lensplit seconds
 def split_audio(in_file, lensplit, percent_overlap, size, sampling_rate, new_ending):
@@ -132,7 +122,8 @@ def split_audio(in_file, lensplit, percent_overlap, size, sampling_rate, new_end
         nexti += ((16000*lensplit)-overlap)
         j += 1
     out_end = '_'+lensplitnop+'secsplit'+str(percent_overlap)+"percentoverlap"+str(j)
-    out_file = in_copy.replace('.wav', out_end + new_ending)
+    temp_file = in_copy.replace('.csv', out_end + new_ending)
+    out_file = temp_file.replace("AudioOnly/", "AudioOnly/LAST_")
     out = ffmpeg.input(in_file)
     out = ffmpeg.filter_(out, 'atrim', start_pts = i)
     out = ffmpeg.output(out, out_file)
@@ -162,7 +153,8 @@ def split_time_series(in_file, lensplit, percent_overlap, size, sampling_rate, n
         nexti += (x-overlap)
         j += 1
     out_end = '_'+lensplitnop+'secsplit'+str(percent_overlap)+"percentoverlap"+str(j)
-    out_file = in_copy.replace('.csv', out_end + new_ending) 
+    temp_file = in_copy.replace('.csv', out_end + new_ending)
+    out_file = temp_file.replace("chunks/", "chunks/LAST_")
     copy_csv(i, nexti, data, out_file)
 
 #helper code
@@ -170,7 +162,7 @@ def copy_csv(first_line_to_include, first_line_to_exclude, data, out_file):
     if(first_line_to_exclude < first_line_to_include):
         print('Please make exclude greater than include')
         return
-    with open(out_file, 'w+') as f:
+    with open(out_file, 'a') as f:
         out = csv.writer(f)
         out.writerow(data[0])
         for i in range(first_line_to_include, first_line_to_exclude):
@@ -178,7 +170,40 @@ def copy_csv(first_line_to_include, first_line_to_exclude, data, out_file):
                 out.writerow(data[i])
             else:
                 break
+#snap time to nearest time series length in ms
+def time_to_size(time, size, sampling_rate):
+    z = size/sampling_rate
+    a = time % z
+    b = time - a
+    c = b + 0.064
+    if (time-b > c-time):
+        time = c
+    else:
+        time = b
+    return time
 
+def to_robot(in_file, out_file):
+    
+    midi_file = []
+    with open(in_file, 'r') as f:
+        read_file = csv.reader(f)
+        for row in read_file:
+            midi_file.append(row)
+
+    #print(midi_file)
+
+    for i in range (1, len(midi_file)):
+        for j in range(1, len(midi_file[0])):
+            #print("[i][j]: [", i, "][", j, "]")
+            if(midi_file[i][j] != "0.0" and midi_file != "0" and midi_file != 0):
+                midi_file[i][j] = "1"
+    
+    #print(midi_file)
+
+
+    with open(out_file, 'w+', newline='') as result_file:
+            wr = csv.writer(result_file, dialect='excel')
+            wr.writerows(midi_file)
 
 #batch codes
 
@@ -243,25 +268,25 @@ def batch_time_series(csv_directory, size, new_ending):
                 print("Time series: ", count)
 
 #batch split_audio
-def batch_split_audio(directory, length, ending, new_ending, size, sampling_rate):
+def batch_split_audio(directory, length, overlap, ending, new_ending, size, sampling_rate):
     count = 0
     for subdir, dirs, files in os.walk(directory):
         for filename in files:
             filepath = subdir + os.sep + filename
             if filepath.endswith(ending):
                 count += 1
-                split_audio(filepath, length, size, sampling_rate, new_ending)
+                split_audio(filepath, length, overlap, size, sampling_rate, new_ending)
                 print("Split audio: ", count) 
 
 #batch split_csv
-def batch_split_time_series(directory, length, ending, new_ending, size, sampling_rate):
+def batch_split_time_series(directory, length, overlap, ending, new_ending, size, sampling_rate):
     count = 0
     for subdir, dirs, files in os.walk(directory):
         for filename in files:
             filepath = subdir + os.sep + filename
             if filepath.endswith(ending):
                 count += 1
-                split_time_series(filepath, length, size, sampling_rate, new_ending,)
+                split_time_series(filepath, length, overlap, size, sampling_rate, new_ending)
                 print("Split time_series: ", count) 
 
 #move (not copy) all with ending to new directory
@@ -274,3 +299,58 @@ def move_to_new_directory(current_loc, new_loc, ending):
                 count+=1
                 shutil.move(filepath, new_loc)
                 print("Move: ", count)
+
+def batch_to_robot(directory):
+    count = 0
+    for subdir, dirs, files in os.walk(directory):
+        for filename in files:
+            filepath = subdir + os.sep + filename
+            if filepath.endswith("_.csv"):
+                count += 1
+                ending = "_robot.csv"
+                newfile = filepath.replace(".csv", ending)
+                to_robot(filepath, newfile)
+                print("to ones: ", count)
+
+def move_to_new_directory_prefix(current_loc, new_loc, start):
+    count = 0
+    for subdir, dirs, files in os.walk(current_loc):
+        for filename in files:
+            filepath = subdir + os.sep + filename
+            if filepath.startswith(start):
+                count+=1
+                shutil.move(filepath, new_loc)
+                print("Move: ", count)
+
+def get_song_name(file, cur_direc, sep):
+    #print(file)
+    x = file.split(sep)
+    name = x[0]
+    directory = cur_direc + os.sep + name
+    is_dir = os.path.isdir(directory)
+    if(is_dir):
+        filepath = cur_direc + os.sep + file
+        shutil.move(filepath, directory)
+    else:
+        print("Creating directory ", name)
+        os.mkdir(directory)
+        filepath = cur_direc + os.sep + file
+        shutil.move(filepath, directory)
+
+def batch_move_songs(cur_direc, sep):
+    count = 0
+    for subdir, dirs, files in os.walk(cur_direc):
+        for filename in files:
+            get_song_name(filename, cur_direc, sep)
+            count += 1
+            print("Move: ", count)
+
+#batch_split_time_series(r'/mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/chunks', 10, 0, "1024chunk.csv", "_.csv", 1024, 16000)
+
+#batch_split_audio(r'/mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/AudioOnly', 10, 0, 'cutandresample.wav', '_.wav', 1024, 16000)
+#move_to_new_directory(r'/mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/AudioOnly', r'/mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/Split/Audio_10_sec', '_.csv')
+
+#batch_to_robot(r'mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/Split/Audio_10_sec')
+#move_to_new_directory_prefix(r'/mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/Split/MIDI_10_sec', r'/mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/Split/MIDI_10_sec/final', r'/mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/Split/MIDI_10_sec/LAST')
+#batch_move_songs(r'/mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/Split/MIDI_10_sec_ROBOT', "_1024")
+#batch_move_songs(r'/mnt/c/users/victo/documents/research/datasets/maestro-v2.0.0/Split/Audio_10_sec', "_cutandresample")
